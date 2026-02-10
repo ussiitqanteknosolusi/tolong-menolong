@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, QrCode, Building2, Wallet, Check, Copy, ArrowRight } from 'lucide-react';
+import { X, QrCode, Building2, Wallet, Check, Copy, ArrowRight, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,47 +18,67 @@ import { cn } from '@/lib/utils';
 
 const quickAmounts = [25000, 50000, 100000, 250000, 500000, 1000000];
 
-const iconMap = {
-  QrCode,
-  Building2,
-  Wallet,
-};
-
 export default function DonationModal({ isOpen, onClose, campaign }) {
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState('');
-  const [selectedPayment, setSelectedPayment] = useState(null);
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [paymentData, setPaymentData] = useState(null);
 
   const handleAmountSelect = (value) => {
     setAmount(value.toString());
   };
 
-  const handleNext = () => {
-    if (step < 3) setStep(step + 1);
-  };
+  const handleCreateDonation = async () => {
+    setLoading(true);
+    setError('');
 
-  const handleBack = () => {
-    if (step > 1) setStep(step - 1);
+    try {
+      const response = await fetch('/api/donations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          amount: parseInt(amount),
+          name: isAnonymous ? 'Hamba Allah' : name,
+          email: email,
+          phone: phone,
+          message: message,
+          isAnonymous: isAnonymous,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Gagal membuat donasi');
+      }
+
+      setPaymentData(data.data);
+      setStep(2);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClose = () => {
     setStep(1);
     setAmount('');
-    setSelectedPayment(null);
     setName('');
+    setEmail('');
+    setPhone('');
     setMessage('');
     setIsAnonymous(false);
+    setPaymentData(null);
+    setError('');
     onClose();
-  };
-
-  const handleCopyVA = () => {
-    navigator.clipboard.writeText('8888 0812 3456 7890');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const numericAmount = parseInt(amount.replace(/\D/g, '')) || 0;
@@ -68,14 +88,13 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {step === 1 && 'Pilih Nominal Donasi'}
-            {step === 2 && 'Pilih Metode Pembayaran'}
-            {step === 3 && 'Selesaikan Pembayaran'}
+            {step === 1 && 'Buat Donasi'}
+            {step === 2 && 'Selesaikan Pembayaran'}
           </DialogTitle>
         </DialogHeader>
 
         <AnimatePresence mode="wait">
-          {/* Step 1: Amount Selection */}
+          {/* Step 1: Donation Form */}
           {step === 1 && (
             <motion.div
               key="step1"
@@ -84,6 +103,12 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                  {error}
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-2">
                 {quickAmounts.map((value) => (
                   <Button
@@ -121,7 +146,7 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
               </div>
 
               <div className="space-y-2">
-                <Label>Nama (opsional)</Label>
+                <Label>Nama</Label>
                 <Input
                   placeholder="Nama Anda"
                   value={name}
@@ -140,6 +165,26 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
               </div>
 
               <div className="space-y-2">
+                <Label>Email (opsional)</Label>
+                <Input
+                  type="email"
+                  placeholder="email@contoh.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>No. HP (opsional)</Label>
+                <Input
+                  type="tel"
+                  placeholder="08xxxxxxxxxx"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label>Doa/Pesan (opsional)</Label>
                 <Textarea
                   placeholder="Tulis doa atau pesan untuk penerima donasi..."
@@ -151,11 +196,20 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
 
               <Button
                 className="w-full bg-emerald-500 hover:bg-emerald-600"
-                disabled={numericAmount < 10000}
-                onClick={handleNext}
+                disabled={numericAmount < 10000 || loading}
+                onClick={handleCreateDonation}
               >
-                Lanjutkan
-                <ArrowRight className="w-4 h-4 ml-2" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    Lanjut ke Pembayaran
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
               </Button>
               {numericAmount > 0 && numericAmount < 10000 && (
                 <p className="text-xs text-red-500 text-center">
@@ -165,72 +219,10 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
             </motion.div>
           )}
 
-          {/* Step 2: Payment Method */}
-          {step === 2 && (
+          {/* Step 2: Payment */}
+          {step === 2 && paymentData && (
             <motion.div
               key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-4"
-            >
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Total Donasi</p>
-                <p className="text-2xl font-bold text-emerald-600">
-                  {formatCurrency(numericAmount)}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                {paymentMethods.map((method) => {
-                  const Icon = iconMap[method.icon] || Wallet;
-                  return (
-                    <button
-                      key={method.id}
-                      onClick={() => setSelectedPayment(method.id)}
-                      className={cn(
-                        'w-full flex items-center gap-3 p-4 rounded-lg border transition-colors',
-                        selectedPayment === method.id
-                          ? 'border-emerald-500 bg-emerald-50'
-                          : 'border-border hover:border-emerald-300'
-                      )}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-medium text-sm">{method.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {method.description}
-                        </p>
-                      </div>
-                      {selectedPayment === method.id && (
-                        <Check className="w-5 h-5 text-emerald-500" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleBack} className="flex-1">
-                  Kembali
-                </Button>
-                <Button
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600"
-                  disabled={!selectedPayment}
-                  onClick={handleNext}
-                >
-                  Bayar Sekarang
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Step 3: Payment Instructions */}
-          {step === 3 && (
-            <motion.div
-              key="step3"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -242,7 +234,7 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Donasi Berhasil Dibuat!</h3>
                 <p className="text-sm text-muted-foreground">
-                  Silakan selesaikan pembayaran dalam 24 jam
+                  Silakan selesaikan pembayaran
                 </p>
               </div>
 
@@ -250,39 +242,43 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
                 <div className="flex justify-between p-3 bg-muted rounded-lg">
                   <span className="text-sm text-muted-foreground">Total Pembayaran</span>
                   <span className="font-semibold text-emerald-600">
-                    {formatCurrency(numericAmount)}
+                    {formatCurrency(paymentData.payment.amount)}
                   </span>
                 </div>
 
-                <div className="p-4 border rounded-lg space-y-3">
-                  <p className="text-sm font-medium">Nomor Virtual Account</p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 p-3 bg-muted rounded text-lg font-mono">
-                      8888 0812 3456 7890
-                    </code>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleCopyVA}
-                    >
-                      {copied ? (
-                        <Check className="w-4 h-4 text-emerald-500" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    * Ini adalah simulasi pembayaran (MOCK)
-                  </p>
+                <div className="flex justify-between p-3 bg-muted rounded-lg">
+                  <span className="text-sm text-muted-foreground">ID Donasi</span>
+                  <span className="font-mono text-sm">
+                    {paymentData.donation.externalId}
+                  </span>
                 </div>
+
+                {paymentData.payment.invoiceUrl && (
+                  <a
+                    href={paymentData.payment.invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <Button className="w-full bg-emerald-500 hover:bg-emerald-600">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Bayar Sekarang via Xendit
+                    </Button>
+                  </a>
+                )}
+
+                <p className="text-xs text-center text-muted-foreground">
+                  Anda akan diarahkan ke halaman pembayaran Xendit.
+                  Pilih metode pembayaran: QRIS, Transfer Bank, atau E-Wallet.
+                </p>
               </div>
 
               <Button
-                className="w-full bg-emerald-500 hover:bg-emerald-600"
+                variant="outline"
+                className="w-full"
                 onClick={handleClose}
               >
-                Selesai
+                Tutup
               </Button>
             </motion.div>
           )}
