@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Megaphone,
@@ -15,6 +15,7 @@ import {
   X,
   ChevronDown,
   Bell,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -23,8 +24,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { getSession, logout, getCurrentUser } from '@/lib/auth';
 
 const sidebarItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
@@ -37,7 +40,41 @@ const sidebarItems = [
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Skip layout for login page
+  if (pathname === '/admin/login') {
+    return children;
+  }
+
+  useEffect(() => {
+    const session = getSession();
+    if (!session) {
+      router.push('/admin/login');
+    } else {
+      setUser(session.user);
+      setLoading(false);
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/admin/login');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mx-auto mb-4" />
+          <p className="text-muted-foreground">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -74,6 +111,23 @@ export default function AdminLayout({ children }) {
           </Button>
         </div>
 
+        {/* User Info */}
+        {user && (
+          <div className="p-4 border-b border-gray-800">
+            <div className="flex items-center gap-3">
+              <Avatar className="w-10 h-10">
+                <AvatarFallback className="bg-emerald-500 text-white">
+                  {user.name?.charAt(0) || 'A'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{user.name}</p>
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Navigation */}
         <nav className="p-4 space-y-1">
           {sidebarItems.map((item) => {
@@ -85,6 +139,7 @@ export default function AdminLayout({ children }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setSidebarOpen(false)}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
                   isActive
@@ -101,13 +156,13 @@ export default function AdminLayout({ children }) {
 
         {/* Bottom */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
-          <Link
-            href="/"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors w-full"
           >
             <LogOut className="w-5 h-5" />
             <span className="font-medium">Keluar</span>
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -138,17 +193,25 @@ export default function AdminLayout({ children }) {
                 <Button variant="ghost" className="flex items-center gap-2">
                   <Avatar className="w-8 h-8">
                     <AvatarFallback className="bg-emerald-100 text-emerald-600">
-                      A
+                      {user?.name?.charAt(0) || 'A'}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="hidden sm:inline font-medium">Admin</span>
+                  <span className="hidden sm:inline font-medium">{user?.name || 'Admin'}</span>
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>Profil</DropdownMenuItem>
-                <DropdownMenuItem>Pengaturan</DropdownMenuItem>
-                <DropdownMenuItem className="text-red-600">Keluar</DropdownMenuItem>
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/settings">Pengaturan</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-red-600" onClick={handleLogout}>
+                  Keluar
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

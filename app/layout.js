@@ -3,6 +3,8 @@ import './globals.css';
 import DesktopNav from '@/components/desktop-nav';
 import MobileNav from '@/components/mobile-nav';
 import { Toaster } from '@/components/ui/sonner';
+import { LoadingProvider } from '@/lib/loading-context';
+import { Suspense } from 'react';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -16,10 +18,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="id" suppressHydrationWarning>
       <body className={inter.className}>
-        <DesktopNav />
-        {children}
-        <MobileNav />
-        <Toaster position="top-center" />
+        <Suspense fallback={null}>
+          <LoadingProvider>
+            <DesktopNav />
+            {children}
+            <MobileNav />
+            <Toaster position="top-center" />
+          </LoadingProvider>
+        </Suspense>
       </body>
     </html>
   );
