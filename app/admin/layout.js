@@ -27,7 +27,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { getSession, logout, getCurrentUser } from '@/lib/auth';
+import { getSession, logout } from '@/lib/auth';
 
 const sidebarItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
@@ -44,13 +44,14 @@ export default function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // Skip layout for login page
-  if (pathname === '/admin/login') {
-    return children;
-  }
+  const isLoginPage = pathname === '/admin/login';
 
   useEffect(() => {
+    if (isLoginPage) {
+      setLoading(false);
+      return;
+    }
+    
     const session = getSession();
     if (!session) {
       router.push('/admin/login');
@@ -58,7 +59,12 @@ export default function AdminLayout({ children }) {
       setUser(session.user);
       setLoading(false);
     }
-  }, [router]);
+  }, [router, isLoginPage]);
+
+  // Skip layout for login page
+  if (isLoginPage) {
+    return children;
+  }
 
   const handleLogout = () => {
     logout();
