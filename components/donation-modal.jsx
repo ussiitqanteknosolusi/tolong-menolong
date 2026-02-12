@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, QrCode, Building2, Wallet, Check, Copy, ArrowRight, Loader2, ExternalLink } from 'lucide-react';
+import { X, QrCode, Building2, Wallet, Check, Copy, ArrowRight, Loader2, ExternalLink, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 
 const quickAmounts = [25000, 50000, 100000, 250000, 500000, 1000000];
 
-export default function DonationModal({ isOpen, onClose, campaign }) {
+export default function DonationModal({ isOpen, onClose, campaign, user }) {
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState('');
   const [name, setName] = useState('');
@@ -29,6 +29,24 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [paymentData, setPaymentData] = useState(null);
+  const [balance, setBalance] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('xendit'); // 'xendit' or 'wallet'
+
+  useEffect(() => {
+    if (isOpen && user) {
+        setName(user.name || '');
+        setEmail(user.email || '');
+        setPhone(user.phone || '');
+        
+        // Fetch balance
+        fetch(`/api/users/${user.id}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) setBalance(parseFloat(data.data.balance || 0));
+          })
+          .catch(err => console.error(err));
+    }
+  }, [isOpen, user]);
 
   const handleAmountSelect = (value) => {
     setAmount(value.toString());
@@ -38,13 +56,24 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
     setLoading(true);
     setError('');
 
+    const numericAmount = parseInt(amount);
+
+    if (paymentMethod === 'wallet' && balance < numericAmount) {
+      setError('Saldo Kantong Donasi tidak mencukupi. Silakan Top Up atau pilih metode lain.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch('/api/donations', {
+      const endpoint = paymentMethod === 'wallet' ? '/api/donations/pay-with-wallet' : '/api/donations';
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignId: campaign.id,
-          amount: parseInt(amount),
+          userId: user.id, // Ensure userId is sent for wallet payment
+          amount: numericAmount,
           name: isAnonymous ? 'Hamba Allah' : name,
           email: email,
           phone: phone,
@@ -71,13 +100,16 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
   const handleClose = () => {
     setStep(1);
     setAmount('');
-    setName('');
-    setEmail('');
-    setPhone('');
     setMessage('');
     setIsAnonymous(false);
     setPaymentData(null);
     setError('');
+    // Reset defaults but keep user data
+    if (user) {
+        setName(user.name || '');
+        setEmail(user.email || '');
+        setPhone(user.phone || '');
+    }
     onClose();
   };
 
@@ -89,7 +121,7 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
         <DialogHeader>
           <DialogTitle>
             {step === 1 && 'Buat Donasi'}
-            {step === 2 && 'Selesaikan Pembayaran'}
+            {step === 2 && (paymentMethod === 'wallet' ? 'Donasi Berhasil' : 'Selesaikan Pembayaran')}
           </DialogTitle>
         </DialogHeader>
 
@@ -145,6 +177,48 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
                 </div>
               </div>
 
+              {/* Payment Method Selection */}
+               <div className="space-y-2">
+                <Label>Metode Pembayaran</Label>
+                <div className="grid grid-cols-1 gap-2">
+                    <div 
+                        onClick={() => setPaymentMethod('xendit')}
+                        className={cn(
+                            "p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between",
+                            paymentMethod === 'xendit' ? "border-emerald-500 bg-emerald-50" : "border-gray-200 hover:bg-gray-50"
+                        )}
+                    >
+                        <div className="flex items-center gap-2">
+                            <CreditCard className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm font-medium">Transfer Bank / QRIS / E-Wallet</span>
+                        </div>
+                        {paymentMethod === 'xendit' && <Check className="w-4 h-4 text-emerald-600" />}
+                    </div>
+
+                    <div 
+                        onClick={() => numericAmount <= balance && setPaymentMethod('wallet')}
+                        className={cn(
+                            "p-3 rounded-lg border transition-all flex items-center justify-between",
+                            numericAmount > balance ? "opacity-50 cursor-not-allowed bg-gray-50" : "cursor-pointer",
+                            paymentMethod === 'wallet' ? "border-emerald-500 bg-emerald-50" : "border-gray-200 hover:bg-gray-50"
+                        )}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Wallet className="w-4 h-4 text-gray-500" />
+                            <div>
+                                <p className="text-sm font-medium">Saldo Kantong Donasi</p>
+                                <p className="text-xs text-muted-foreground">Saldo: {formatCurrency(balance)}</p>
+                            </div>
+                        </div>
+                        {paymentMethod === 'wallet' && <Check className="w-4 h-4 text-emerald-600" />}
+                    </div>
+                    {numericAmount > balance && (
+                        <p className="text-xs text-red-500 ml-1">Saldo tidak mencukupi untuk nominal ini.</p>
+                    )}
+                </div>
+              </div>
+
+              {/* User Details */}
               <div className="space-y-2">
                 <Label>Nama</Label>
                 <Input
@@ -196,7 +270,7 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
 
               <Button
                 className="w-full bg-emerald-500 hover:bg-emerald-600"
-                disabled={numericAmount < 10000 || loading}
+                disabled={numericAmount < 10000 || loading || (paymentMethod === 'wallet' && balance < numericAmount)}
                 onClick={handleCreateDonation}
               >
                 {loading ? (
@@ -206,20 +280,15 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
                   </>
                 ) : (
                   <>
-                    Lanjut ke Pembayaran
+                    {paymentMethod === 'wallet' ? 'Bayar Sekarang' : 'Lanjut ke Pembayaran'}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </>
                 )}
               </Button>
-              {numericAmount > 0 && numericAmount < 10000 && (
-                <p className="text-xs text-red-500 text-center">
-                  Minimal donasi Rp 10.000
-                </p>
-              )}
             </motion.div>
           )}
 
-          {/* Step 2: Payment */}
+          {/* Step 2: Payment or Success */}
           {step === 2 && paymentData && (
             <motion.div
               key="step2"
@@ -232,30 +301,34 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
                 <div className="w-16 h-16 mx-auto mb-4 bg-emerald-100 rounded-full flex items-center justify-center">
                   <Check className="w-8 h-8 text-emerald-600" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">Donasi Berhasil Dibuat!</h3>
+                <h3 className="font-semibold text-lg mb-2">
+                    {paymentMethod === 'wallet' ? 'Donasi Berhasil!' : 'Donasi Berhasil Dibuat!'}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  Silakan selesaikan pembayaran
+                  {paymentMethod === 'wallet' 
+                    ? 'Terima kasih atas kebaikan Anda. Donasi telah disalurkan.' 
+                    : 'Silakan selesaikan pembayaran'}
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between p-3 bg-muted rounded-lg">
-                  <span className="text-sm text-muted-foreground">Total Pembayaran</span>
+                  <span className="text-sm text-muted-foreground">Total Donasi</span>
                   <span className="font-semibold text-emerald-600">
-                    {formatCurrency(paymentData.payment.amount)}
+                    {formatCurrency(paymentData.amount)}
                   </span>
                 </div>
 
                 <div className="flex justify-between p-3 bg-muted rounded-lg">
-                  <span className="text-sm text-muted-foreground">ID Donasi</span>
-                  <span className="font-mono text-sm">
-                    {paymentData.donation.externalId}
+                  <span className="text-sm text-muted-foreground">Metode Bayar</span>
+                  <span className="font-medium text-sm">
+                    {paymentMethod === 'wallet' ? 'Saldo Kantong Donasi' : 'Xendit Gateway'}
                   </span>
                 </div>
 
-                {paymentData.payment.invoiceUrl && (
+                {paymentMethod === 'xendit' && paymentData.invoiceUrl && (
                   <a
-                    href={paymentData.payment.invoiceUrl}
+                    href={paymentData.invoiceUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block"
@@ -266,15 +339,16 @@ export default function DonationModal({ isOpen, onClose, campaign }) {
                     </Button>
                   </a>
                 )}
-
-                <p className="text-xs text-center text-muted-foreground">
-                  Anda akan diarahkan ke halaman pembayaran Xendit.
-                  Pilih metode pembayaran: QRIS, Transfer Bank, atau E-Wallet.
-                </p>
+                
+                {paymentMethod === 'wallet' && (
+                    <p className="text-xs text-center text-emerald-600">
+                        Saldo Anda saat ini: {formatCurrency(balance - paymentData.amount)}
+                    </p>
+                )}
               </div>
 
               <Button
-                variant="outline"
+                variant={paymentMethod === 'wallet' ? 'default' : 'outline'}
                 className="w-full"
                 onClick={handleClose}
               >

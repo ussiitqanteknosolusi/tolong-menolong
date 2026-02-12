@@ -11,6 +11,12 @@ import {
   Clock,
   XCircle,
   RefreshCw,
+  MoreHorizontal,
+  CreditCard,
+  Calendar,
+  User,
+  MessageCircle,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +31,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -36,107 +48,56 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+  DialogDescription,
+}
+from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/mock-data';
+import { toast } from 'sonner';
 
-// Mock donations data
-const mockDonations = [
-  {
-    id: '1',
-    externalId: 'DON-ABC12345',
-    donorName: 'Ahmad Hidayat',
-    donorEmail: 'ahmad@email.com',
-    donorPhone: '08123456789',
-    campaignTitle: 'Operasi Jantung Bayi Raffa',
-    amount: 500000,
-    message: 'Semoga lekas sembuh!',
-    status: 'paid',
-    paymentMethod: 'VIRTUAL_ACCOUNT',
-    paymentChannel: 'BCA',
-    createdAt: '2025-06-10T10:30:00Z',
-    paidAt: '2025-06-10T10:35:00Z',
-  },
-  {
-    id: '2',
-    externalId: 'DON-DEF67890',
-    donorName: 'Hamba Allah',
-    donorEmail: null,
-    donorPhone: null,
-    campaignTitle: 'Bantu Anak Yatim Pendidikan',
-    amount: 1000000,
-    message: 'Bismillah',
-    status: 'paid',
-    paymentMethod: 'QRIS',
-    paymentChannel: 'QRIS',
-    createdAt: '2025-06-10T09:15:00Z',
-    paidAt: '2025-06-10T09:20:00Z',
-  },
-  {
-    id: '3',
-    externalId: 'DON-GHI11111',
-    donorName: 'Dewi Lestari',
-    donorEmail: 'dewi@email.com',
-    donorPhone: '08234567890',
-    campaignTitle: 'Bantuan Korban Banjir',
-    amount: 250000,
-    message: '',
-    status: 'pending',
-    paymentMethod: 'EWALLET',
-    paymentChannel: 'OVO',
-    createdAt: '2025-06-10T11:00:00Z',
-    paidAt: null,
-  },
-  {
-    id: '4',
-    externalId: 'DON-JKL22222',
-    donorName: 'Budi Santoso',
-    donorEmail: 'budi@email.com',
-    donorPhone: '08345678901',
-    campaignTitle: 'Pembangunan Masjid Desa',
-    amount: 2000000,
-    message: 'Semoga menjadi amal jariyah',
-    status: 'paid',
-    paymentMethod: 'VIRTUAL_ACCOUNT',
-    paymentChannel: 'MANDIRI',
-    createdAt: '2025-06-09T14:00:00Z',
-    paidAt: '2025-06-09T14:30:00Z',
-  },
-  {
-    id: '5',
-    externalId: 'DON-MNO33333',
-    donorName: 'Rina Wati',
-    donorEmail: 'rina@email.com',
-    donorPhone: '08456789012',
-    campaignTitle: 'Beasiswa Mahasiswa',
-    amount: 750000,
-    message: 'Semangat belajar!',
-    status: 'expired',
-    paymentMethod: 'VIRTUAL_ACCOUNT',
-    paymentChannel: 'BRI',
-    createdAt: '2025-06-08T08:00:00Z',
-    paidAt: null,
-  },
-];
-
-const statusConfig = {
-  paid: { label: 'Berhasil', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
-  expired: { label: 'Expired', color: 'bg-gray-100 text-gray-700', icon: XCircle },
-  failed: { label: 'Gagal', color: 'bg-red-100 text-red-700', icon: XCircle },
+const statusColors = {
+  paid: 'bg-emerald-100 text-emerald-700',
+  pending: 'bg-yellow-100 text-yellow-700',
+  expired: 'bg-gray-100 text-gray-700',
+  failed: 'bg-red-100 text-red-700',
 };
 
 export default function DonationsPage() {
-  const [donations, setDonations] = useState(mockDonations);
+  const [donations, setDonations] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedDonation, setSelectedDonation] = useState(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDonations();
+  }, []);
+
+  const fetchDonations = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/donations');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.success) {
+        setDonations(data.data);
+      } else {
+        toast.error(data.message || 'Gagal mengambil data donasi');
+      }
+    } catch (error) {
+      console.error('Error fetching donations:', error);
+      toast.error('Gagal mengambil data donasi');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredDonations = donations.filter((donation) => {
     const matchesSearch =
       donation.donorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       donation.externalId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      donation.campaignTitle.toLowerCase().includes(searchQuery.toLowerCase());
+      (donation.campaignTitle || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || donation.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -149,14 +110,9 @@ export default function DonationsPage() {
     .filter((d) => d.status === 'pending')
     .reduce((sum, d) => sum + d.amount, 0);
 
-  const handleViewDetail = (donation) => {
-    setSelectedDonation(donation);
-    setIsDetailOpen(true);
-  };
-
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('id-ID', {
+    return new Date(dateString).toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -164,6 +120,14 @@ export default function DonationsPage() {
       minute: '2-digit',
     });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -238,7 +202,7 @@ export default function DonationsPage() {
                 <SelectItem value="failed">Gagal</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" onClick={fetchDonations}>
               <RefreshCw className="w-4 h-4" />
             </Button>
           </div>
@@ -264,8 +228,6 @@ export default function DonationsPage() {
               </TableHeader>
               <TableBody>
                 {filteredDonations.map((donation) => {
-                  const status = statusConfig[donation.status];
-                  const StatusIcon = status.icon;
                   return (
                     <TableRow key={donation.id}>
                       <TableCell>
@@ -297,9 +259,8 @@ export default function DonationsPage() {
                         <Badge variant="outline">{donation.paymentChannel}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={status.color}>
-                          <StatusIcon className="w-3 h-3 mr-1" />
-                          {status.label}
+                        <Badge className={statusColors[donation.status]}>
+                          {donation.status === 'paid' ? 'Berhasil' : donation.status === 'pending' ? 'Pending' : donation.status === 'expired' ? 'Expired' : 'Gagal'}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -308,13 +269,19 @@ export default function DonationsPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetail(donation)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setSelectedDonation(donation)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              Detail Transaksi
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
@@ -332,59 +299,93 @@ export default function DonationsPage() {
       </Card>
 
       {/* Detail Dialog */}
-      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={!!selectedDonation} onOpenChange={() => setSelectedDonation(null)}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Detail Donasi</DialogTitle>
+            <DialogTitle>Detail Transaksi</DialogTitle>
+            <DialogDescription>
+              ID: {selectedDonation?.externalId}
+            </DialogDescription>
           </DialogHeader>
+
           {selectedDonation && (
             <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">ID Transaksi</span>
-                  <code className="text-sm">{selectedDonation.externalId}</code>
+              <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  <Badge className={statusColors[selectedDonation.status]}>
+                    {selectedDonation.status === 'paid' ? 'Berhasil' : selectedDonation.status === 'pending' ? 'Pending' : selectedDonation.status === 'expired' ? 'Expired' : 'Gagal'}
+                  </Badge>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Nominal</span>
-                  <span className="font-bold text-emerald-600">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Jumlah Donasi</span>
+                  <span className="font-bold text-lg text-emerald-600">
                     {formatCurrency(selectedDonation.amount)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <Badge className={statusConfig[selectedDonation.status].color}>
-                    {statusConfig[selectedDonation.status].label}
-                  </Badge>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Tanggal</span>
+                  <span className="text-sm font-medium">
+                    {new Date(selectedDonation.createdAt).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h4 className="font-medium">Informasi Donatur</h4>
-                <div className="text-sm space-y-1">
-                  <p><span className="text-muted-foreground">Nama:</span> {selectedDonation.donorName}</p>
-                  <p><span className="text-muted-foreground">Email:</span> {selectedDonation.donorEmail || '-'}</p>
-                  <p><span className="text-muted-foreground">Telepon:</span> {selectedDonation.donorPhone || '-'}</p>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <User className="w-4 h-4 mt-1 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Informasi Donatur</p>
+                    <p className="text-sm text-muted-foreground">{selectedDonation.donorName}</p>
+                    <p className="text-xs text-muted-foreground">{selectedDonation.donorEmail || '-'}</p>
+                    <p className="text-xs text-muted-foreground">{selectedDonation.donorPhone || '-'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <CreditCard className="w-4 h-4 mt-1 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Metode Pembayaran</p>
+                    <p className="text-sm text-muted-foreground uppercase">
+                      {selectedDonation.paymentMethod || 'Belum dipilih'}
+                    </p>
+                    {selectedDonation.paymentChannel && (
+                        <p className="text-xs text-muted-foreground uppercase">{selectedDonation.paymentChannel}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Calendar className="w-4 h-4 mt-1 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Waktu Transaksi</p>
+                    <p className="text-sm text-muted-foreground">Dibuat: {formatDate(selectedDonation.createdAt)}</p>
+                    <p className="text-sm text-muted-foreground">Dibayar: {formatDate(selectedDonation.paidAt)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <MessageCircle className="w-4 h-4 mt-1 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Pesan / Doa</p>
+                    <p className="text-sm text-muted-foreground italic">
+                      "{selectedDonation.message || 'Tidak ada pesan'}"
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h4 className="font-medium">Informasi Pembayaran</h4>
-                <div className="text-sm space-y-1">
-                  <p><span className="text-muted-foreground">Metode:</span> {selectedDonation.paymentMethod}</p>
-                  <p><span className="text-muted-foreground">Channel:</span> {selectedDonation.paymentChannel}</p>
-                  <p><span className="text-muted-foreground">Dibuat:</span> {formatDate(selectedDonation.createdAt)}</p>
-                  <p><span className="text-muted-foreground">Dibayar:</span> {formatDate(selectedDonation.paidAt)}</p>
-                </div>
+              <div className="pt-4 border-t">
+                 <p className="text-xs text-muted-foreground text-center">
+                    Terima kasih telah berdonasi melalui BerbagiPath
+                 </p>
               </div>
-
-              {selectedDonation.message && (
-                <div className="space-y-2">
-                  <h4 className="font-medium">Pesan</h4>
-                  <p className="text-sm text-muted-foreground italic">
-                    "{selectedDonation.message}"
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </DialogContent>

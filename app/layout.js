@@ -4,7 +4,9 @@ import DesktopNav from '@/components/desktop-nav';
 import MobileNav from '@/components/mobile-nav';
 import { Toaster } from '@/components/ui/sonner';
 import { LoadingProvider } from '@/lib/loading-context';
+import { AuthProvider } from '@/components/auth-provider';
 import { Suspense } from 'react';
+import NextTopLoader from 'nextjs-toploader';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -18,12 +20,15 @@ export default function RootLayout({ children }) {
   return (
     <html lang="id" suppressHydrationWarning>
       <body className={inter.className}>
+        <NextTopLoader color="#10b981" showSpinner={false} />
         <Suspense fallback={null}>
           <LoadingProvider>
-            <DesktopNav />
-            {children}
-            <MobileNav />
-            <Toaster position="top-center" />
+            <AuthProvider>
+              <DesktopNav />
+              {children}
+              <MobileNav />
+              <Toaster position="top-center" />
+            </AuthProvider>
           </LoadingProvider>
         </Suspense>
       </body>

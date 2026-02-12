@@ -2,18 +2,24 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Heart, Inbox, User } from 'lucide-react';
+import { Home, Heart, Inbox, User, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Beranda' },
-  { href: '/donations', icon: Heart, label: 'Donasi Saya' },
+  { href: '/donations', icon: Heart, label: 'Donasi' },
+  { href: '/articles', icon: FileText, label: 'Artikel' },
   { href: '/inbox', icon: Inbox, label: 'Inbox' },
   { href: '/profile', icon: User, label: 'Profil' },
 ];
 
 export default function MobileNav() {
   const pathname = usePathname();
+
+  // Hide on admin pages
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t md:hidden z-50">

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Search,
   MoreHorizontal,
@@ -10,6 +11,7 @@ import {
   BadgeCheck,
   Ban,
   Eye,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,65 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-// Mock users data
-const mockUsers = [
-  {
-    id: '1',
-    name: 'Ahmad Hidayat',
-    email: 'ahmad@email.com',
-    phone: '08123456789',
-    role: 'user',
-    isVerified: true,
-    totalDonations: 5500000,
-    donationCount: 8,
-    createdAt: '2025-01-15',
-  },
-  {
-    id: '2',
-    name: 'Yayasan Cahaya Harapan',
-    email: 'yayasan@email.com',
-    phone: '08234567890',
-    role: 'organizer',
-    isVerified: true,
-    totalDonations: 0,
-    campaignCount: 3,
-    createdAt: '2025-02-01',
-  },
-  {
-    id: '3',
-    name: 'Dewi Lestari',
-    email: 'dewi@email.com',
-    phone: '08345678901',
-    role: 'user',
-    isVerified: false,
-    totalDonations: 2750000,
-    donationCount: 5,
-    createdAt: '2025-03-10',
-  },
-  {
-    id: '4',
-    name: 'Admin Utama',
-    email: 'admin@berbagipath.com',
-    phone: '08456789012',
-    role: 'admin',
-    isVerified: true,
-    totalDonations: 0,
-    donationCount: 0,
-    createdAt: '2024-12-01',
-  },
-  {
-    id: '5',
-    name: 'Budi Santoso',
-    email: 'budi@email.com',
-    phone: '08567890123',
-    role: 'user',
-    isVerified: true,
-    totalDonations: 15000000,
-    donationCount: 12,
-    createdAt: '2025-01-20',
-  },
-];
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const roleColors = {
   admin: 'bg-purple-100 text-purple-700',
@@ -104,9 +49,29 @@ const roleColors = {
 };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users');
+      const data = await response.json();
+      if (data.success) {
+        setUsers(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Gagal mengambil data user');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -116,11 +81,59 @@ export default function UsersPage() {
     return matchesSearch && matchesRole;
   });
 
-  const handleToggleVerify = (id) => {
-    setUsers(
-      users.map((u) => (u.id === id ? { ...u, isVerified: !u.isVerified } : u))
-    );
+  const handleRoleChange = async (id, newRole) => {
+    try {
+      const response = await fetch(`/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(
+          users.map((u) => (u.id === id ? { ...u, role: newRole } : u))
+        );
+        toast.success(`Role user diubah menjadi ${newRole}`);
+      } else {
+        toast.error('Gagal mengubah role user');
+      }
+    } catch (error) {
+      console.error('Error updating role:', error);
+      toast.error('Terjadi kesalahan saat mengubah role');
+    }
   };
+
+  const handleToggleVerify = async (id, currentStatus) => {
+    try {
+      const response = await fetch(`/api/users/${id}/verify`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isVerified: !currentStatus }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(
+          users.map((u) => (u.id === id ? { ...u, isVerified: !u.isVerified } : u))
+        );
+        toast.success(currentStatus ? 'Verifikasi dicabut' : 'User diverifikasi');
+      } else {
+        toast.error('Gagal mengubah status verifikasi');
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast.error('Terjadi kesalahan');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -130,10 +143,12 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold">Kelola Users</h1>
           <p className="text-muted-foreground">Kelola pengguna dan penggalang dana</p>
         </div>
-        <Button className="bg-emerald-500 hover:bg-emerald-600">
-          <UserPlus className="w-4 h-4 mr-2" />
-          Tambah User
-        </Button>
+        <Link href="/admin/users/new">
+          <Button className="bg-emerald-500 hover:bg-emerald-600">
+            <UserPlus className="w-4 h-4 mr-2" />
+            Tambah User
+          </Button>
+        </Link>
       </div>
 
       {/* Stats */}
@@ -245,14 +260,24 @@ export default function UsersPage() {
                         </p>
                         <p className="flex items-center gap-1 text-muted-foreground">
                           <Phone className="w-3 h-3" />
-                          {user.phone}
+                          {user.phone || '-'}
                         </p>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={roleColors[user.role]}>
-                        {user.role}
-                      </Badge>
+                      <Select 
+                        value={user.role || 'user'} 
+                        onValueChange={(val) => handleRoleChange(user.id, val)}
+                      >
+                        <SelectTrigger className={cn("w-[120px] h-8 text-xs", roleColors[user.role] || roleColors.user)}>
+                          <SelectValue placeholder="Role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="organizer">Organizer</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       {user.isVerified ? (
@@ -285,15 +310,17 @@ export default function UsersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="w-4 h-4 mr-2" />
-                            Lihat Detail
+                          <DropdownMenuItem asChild>
+                            <Link href={`/admin/users/${user.id}`}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              Lihat Detail / Edit
+                            </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleToggleVerify(user.id)}>
+                          <DropdownMenuItem onClick={() => handleToggleVerify(user.id, user.isVerified)}>
                             <BadgeCheck className="w-4 h-4 mr-2" />
                             {user.isVerified ? 'Hapus Verifikasi' : 'Verifikasi'}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem className="text-red-600" onClick={() => toast.info('Fitur blokir belum tersedia')}>
                             <Ban className="w-4 h-4 mr-2" />
                             Blokir User
                           </DropdownMenuItem>

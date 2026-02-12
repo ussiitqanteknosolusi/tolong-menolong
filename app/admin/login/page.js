@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Heart, Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -65,9 +66,9 @@ export default function AdminLoginPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', delay: 0.2 }}
-              className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-emerald-500 flex items-center justify-center"
+              className="relative w-20 h-20 mx-auto mb-4 bg-white rounded-2xl overflow-hidden shadow-lg"
             >
-              <Heart className="w-8 h-8 text-white fill-white" />
+              <Image src="/logo.png" alt="BerbagiPath" fill className="object-cover" />
             </motion.div>
             <CardTitle className="text-2xl">Admin Login</CardTitle>
             <CardDescription>Masuk ke panel admin BerbagiPath</CardDescription>

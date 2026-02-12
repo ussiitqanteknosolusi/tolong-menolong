@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Plus,
   Edit,
@@ -14,7 +14,11 @@ import {
   TreePine,
   PawPrint,
   Building2,
+  Upload,
+  Loader2,
 } from 'lucide-react';
+import Image from 'next/image';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,7 +38,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { categories as initialCategories } from '@/lib/mock-data';
 
 const iconOptions = [
   { value: 'Heart', icon: Heart, label: 'Heart' },
@@ -70,17 +73,36 @@ const iconMap = {
 };
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState(
-    initialCategories.map((c) => ({ ...c, isActive: true, campaignCount: Math.floor(Math.random() * 50) + 5 }))
-  );
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     icon: 'Heart',
     color: 'bg-red-100 text-red-600',
-    isActive: true,
+    isActive: true, // Not persisted yet
   });
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      const data = await response.json();
+      if (data.success) {
+        setCategories(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // toast.error('Gagal mengambil data kategori');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenDialog = (category = null) => {
     if (category) {
@@ -103,40 +125,89 @@ export default function CategoriesPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (!formData.name) return;
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    if (editingCategory) {
-      setCategories(
-        categories.map((c) =>
-          c.id === editingCategory.id ? { ...c, ...formData } : c
-        )
-      );
-    } else {
-      const newCategory = {
-        id: `cat-${Date.now()}`,
-        slug: formData.name.toLowerCase().replace(/\s+/g, '-'),
-        ...formData,
-        campaignCount: 0,
-      };
-      setCategories([...categories, newCategory]);
+    setUploading(true);
+    const data = new FormData();
+    data.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload/icon', {
+        method: 'POST',
+        body: data,
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setFormData({ ...formData, icon: result.url });
+      } else {
+        alert(result.error);
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Gagal mengupload file icon');
+    } finally {
+        setUploading(false);
     }
-
-    setIsDialogOpen(false);
   };
 
-  const handleDelete = (id) => {
+  const handleSave = async () => {
+    if (!formData.name) return;
+
+    try {
+        let response;
+        if (editingCategory) {
+            response = await fetch(`/api/categories/${editingCategory.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+        } else {
+            response = await fetch('/api/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            setIsDialogOpen(false);
+            fetchCategories();
+            // toast.success(editingCategory ? 'Kategori diperbarui' : 'Kategori dibuat');
+        } else {
+            // toast.error(data.error);
+            alert(data.error);
+        }
+    } catch (error) {
+        console.error('Error saving category:', error);
+    }
+  };
+
+  const handleDelete = async (id) => {
     if (confirm('Apakah Anda yakin ingin menghapus kategori ini?')) {
-      setCategories(categories.filter((c) => c.id !== id));
+      try {
+        const response = await fetch(`/api/categories/${id}`, {
+            method: 'DELETE',
+        });
+        const data = await response.json();
+        if (data.success) {
+            setCategories(categories.filter((c) => c.id !== id));
+        } else {
+             alert(data.error || 'Gagal menghapus');
+        }
+      } catch (error) {
+          console.error(error);
+      }
     }
   };
 
   const handleToggleActive = (id) => {
-    setCategories(
-      categories.map((c) =>
-        c.id === id ? { ...c, isActive: !c.isActive } : c
-      )
-    );
+    // Not implemented in DB yet
+    alert("Fitur non-aktif kategori belum tersedia di database");
   };
 
   return (
@@ -168,9 +239,20 @@ export default function CategoriesPage() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-4">
                   <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center ${category.color}`}
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center ${category.color} overflow-hidden`}
                   >
-                    <Icon className="w-6 h-6" />
+                    {category.icon.startsWith('/') ? (
+                        <div className="relative w-8 h-8">
+                             <Image 
+                                src={category.icon} 
+                                alt={category.name} 
+                                fill 
+                                className="object-contain"
+                             />
+                        </div>
+                    ) : (
+                        <Icon className="w-6 h-6" />
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
@@ -234,29 +316,69 @@ export default function CategoriesPage() {
 
             <div className="space-y-2">
               <Label>Icon</Label>
-              <Select
-                value={formData.icon}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, icon: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih icon" />
-                </SelectTrigger>
-                <SelectContent>
-                  {iconOptions.map((opt) => {
-                    const OptIcon = opt.icon;
-                    return (
-                      <SelectItem key={opt.value} value={opt.value}>
+              <Tabs defaultValue={formData.icon.startsWith('/') ? 'upload' : 'select'} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="select">Pilih Standar</TabsTrigger>
+                  <TabsTrigger value="upload">Upload Gambar</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="select" className="mt-4">
+                    <Select
+                        value={!formData.icon.startsWith('/') ? formData.icon : 'Heart'}
+                        onValueChange={(value) =>
+                        setFormData({ ...formData, icon: value })
+                        }
+                    >
+                        <SelectTrigger>
+                        <SelectValue placeholder="Pilih icon" />
+                        </SelectTrigger>
+                        <SelectContent>
+                        {iconOptions.map((opt) => {
+                            const OptIcon = opt.icon;
+                            return (
+                            <SelectItem key={opt.value} value={opt.value}>
+                                <div className="flex items-center gap-2">
+                                <OptIcon className="w-4 h-4" />
+                                {opt.label}
+                                </div>
+                            </SelectItem>
+                            );
+                        })}
+                        </SelectContent>
+                    </Select>
+                </TabsContent>
+
+                <TabsContent value="upload" className="mt-4">
+                    <div className="flex flex-col items-center justify-center gap-4 p-4 border-2 border-dashed rounded-lg bg-muted/50">
+                        {formData.icon.startsWith('/') && (
+                            <div className="relative w-16 h-16 bg-white rounded-lg p-2 border">
+                                <Image 
+                                    src={formData.icon} 
+                                    alt="Icon preview" 
+                                    fill 
+                                    className="object-contain p-1"
+                                />
+                            </div>
+                        )}
                         <div className="flex items-center gap-2">
-                          <OptIcon className="w-4 h-4" />
-                          {opt.label}
+                            <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileUpload}
+                                className="w-full max-w-[250px]"
+                                disabled={uploading}
+                            />
                         </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+                        {uploading && (
+                             <div className="flex items-center text-sm text-muted-foreground">
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Mengupload...
+                             </div>
+                        )}
+                        <p className="text-xs text-muted-foreground">Max 2MB. PNG, JPG, WEBP</p>
+                    </div>
+                </TabsContent>
+              </Tabs>
             </div>
 
             <div className="space-y-2">
@@ -301,6 +423,13 @@ export default function CategoriesPage() {
                   className={`w-10 h-10 rounded-lg flex items-center justify-center ${formData.color}`}
                 >
                   {(() => {
+                    if (formData.icon.startsWith('/')) {
+                        return (
+                            <div className="relative w-6 h-6">
+                                <Image src={formData.icon} alt="Preview" fill className="object-contain" />
+                            </div>
+                        );
+                    }
                     const PreviewIcon = iconMap[formData.icon] || Heart;
                     return <PreviewIcon className="w-5 h-5" />;
                   })()}

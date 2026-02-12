@@ -27,6 +27,33 @@ export default function PaymentSuccessPage() {
     }
   }, [donationId]);
 
+  const handleSimulateSuccess = async () => {
+    if (!donation) return;
+    setLoading(true);
+    try {
+        const payload = {
+            order: { invoice_number: donation.xendit_external_id },
+            transaction: { status: 'SUCCESS' }
+        };
+        
+        await fetch('/api/webhook/doku', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        // Refresh data
+        const res = await fetch(`/api/donations/${donationId}`);
+        const data = await res.json();
+        if (data.success) setDonation(data.data);
+        
+    } catch (e) {
+        console.error('Simulation failed', e);
+    } finally {
+        setLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-emerald-50 to-background">
       <motion.div
@@ -54,19 +81,39 @@ export default function PaymentSuccessPage() {
               <div className="bg-muted/50 rounded-lg p-4 mb-6 text-left space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">ID Donasi</span>
-                  <span className="text-sm font-mono">{donation.externalId}</span>
+                  <span className="text-sm font-mono">{donation.xendit_external_id || donation.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Campaign</span>
-                  <span className="text-sm font-medium">{donation.campaignTitle}</span>
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  <span className={`text-sm font-bold ${
+                      donation.status === 'paid' ? 'text-emerald-600' : 
+                      donation.status === 'pending' ? 'text-yellow-600' : 'text-gray-600'
+                  }`}>
+                    {donation.status === 'paid' ? 'LUNAS' : donation.status.toUpperCase()}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Nominal</span>
                   <span className="text-sm font-semibold text-emerald-600">
-                    Rp {donation.amount?.toLocaleString('id-ID')}
+                    Rp {Number(donation.amount).toLocaleString('id-ID')}
                   </span>
                 </div>
               </div>
+            )}
+
+            {/* Dev Simulation Button */}
+            {process.env.NODE_ENV === 'development' && donation?.status === 'pending' && (
+                <div className="mb-4 p-4 border border-yellow-200 bg-yellow-50 rounded text-sm">
+                    <p className="mb-2 text-yellow-800 font-medium">Mode Pengembangan (Localhost)</p>
+                    <Button 
+                        onClick={handleSimulateSuccess} 
+                        disabled={loading}
+                        variant="warning"
+                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                    >
+                        {loading ? 'Memproses...' : 'Simulasi Webhook Sukses (DOKU)'}
+                    </Button>
+                </div>
             )}
 
             <div className="space-y-3">

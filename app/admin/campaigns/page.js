@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -16,6 +16,7 @@ import {
   Clock,
   XCircle,
   BadgeCheck,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +43,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatCurrency, campaigns as mockCampaigns, getProgressPercentage } from '@/lib/mock-data';
+import { formatCurrency, getProgressPercentage } from '@/lib/mock-data';
+import { toast } from 'sonner';
 
 const statusColors = {
   active: 'bg-emerald-100 text-emerald-700',
@@ -54,12 +56,27 @@ const statusColors = {
 export default function CampaignsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [campaigns, setCampaigns] = useState(
-    mockCampaigns.map((c) => ({
-      ...c,
-      status: c.isUrgent ? 'active' : 'active',
-    }))
-  );
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, []);
+
+  const fetchCampaigns = async () => {
+    try {
+      const response = await fetch('/api/campaigns');
+      const data = await response.json();
+      if (data.success) {
+        setCampaigns(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+      toast.error('Gagal mengambil data campaign');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredCampaigns = campaigns.filter((campaign) => {
     const matchesSearch = campaign.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -67,19 +84,59 @@ export default function CampaignsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Apakah Anda yakin ingin menghapus campaign ini?')) {
-      setCampaigns(campaigns.filter((c) => c.id !== id));
+      try {
+        const response = await fetch(`/api/campaigns/${id}`, {
+          method: 'DELETE',
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          setCampaigns(campaigns.filter((c) => c.id !== id));
+          toast.success('Campaign berhasil dihapus');
+        } else {
+          toast.error(data.error || 'Gagal menghapus campaign');
+        }
+      } catch (error) {
+        console.error('Error deleting campaign:', error);
+        toast.error('Terjadi kesalahan saat menghapus campaign');
+      }
     }
   };
 
-  const handleToggleVerify = (id) => {
-    setCampaigns(
-      campaigns.map((c) =>
-        c.id === id ? { ...c, isVerified: !c.isVerified } : c
-      )
-    );
+  const handleToggleVerify = async (id, currentStatus) => {
+    try {
+      const response = await fetch(`/api/campaigns/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isVerified: !currentStatus }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setCampaigns(
+          campaigns.map((c) =>
+            c.id === id ? { ...c, isVerified: !c.isVerified } : c
+          )
+        );
+        toast.success(currentStatus ? 'Verifikasi dicabut' : 'Campaign diverifikasi');
+      } else {
+        toast.error(data.error || 'Gagal mengubah status verifikasi');
+      }
+    } catch (error) {
+      console.error('Error updating campaign:', error);
+      toast.error('Terjadi kesalahan');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -184,7 +241,7 @@ export default function CampaignsPage() {
                         <div className="flex items-center gap-3">
                           <div className="relative w-16 h-12 rounded-lg overflow-hidden flex-shrink-0">
                             <Image
-                              src={campaign.image}
+                              src={campaign.image || '/placeholder-image.jpg'}
                               alt={campaign.title}
                               fill
                               className="object-cover"
@@ -198,7 +255,7 @@ export default function CampaignsPage() {
                               )}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {campaign.organizer?.name || 'Organizer'}
+                              {campaign.organizerName || 'Organizer'}
                             </p>
                           </div>
                         </div>
@@ -248,10 +305,10 @@ export default function CampaignsPage() {
                             <DropdownMenuItem asChild>
                               <Link href={`/admin/campaigns/${campaign.id}`}>
                                 <Edit className="w-4 h-4 mr-2" />
-                                Edit
+                                Edit Campaign
                               </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleToggleVerify(campaign.id)}>
+                            <DropdownMenuItem onClick={() => handleToggleVerify(campaign.id, campaign.isVerified)}>
                               <CheckCircle className="w-4 h-4 mr-2" />
                               {campaign.isVerified ? 'Hapus Verifikasi' : 'Verifikasi'}
                             </DropdownMenuItem>

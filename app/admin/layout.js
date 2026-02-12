@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -16,6 +17,10 @@ import {
   ChevronDown,
   Bell,
   Loader2,
+  ShieldCheck,
+  Flag,
+  DollarSign,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -28,12 +33,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { getSession, logout } from '@/lib/auth';
+import { AdminNotifications } from '@/components/admin-notifications';
 
 const sidebarItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/admin/campaigns', icon: Megaphone, label: 'Campaigns' },
   { href: '/admin/donations', icon: Heart, label: 'Donasi' },
+  { href: '/admin/articles', icon: FileText, label: 'Artikel' },
+  { href: '/admin/withdrawals', icon: DollarSign, label: 'Pencairan' },
   { href: '/admin/users', icon: Users, label: 'Users' },
+  { href: '/admin/verifications', icon: ShieldCheck, label: 'Verifikasi' },
+  { href: '/admin/reports', icon: Flag, label: 'Laporan' },
   { href: '/admin/categories', icon: FolderOpen, label: 'Kategori' },
   { href: '/admin/settings', icon: Settings, label: 'Pengaturan' },
 ];
@@ -102,8 +112,8 @@ export default function AdminLayout({ children }) {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-800">
           <Link href="/admin" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-              <Heart className="w-4 h-4 text-white fill-white" />
+            <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-white">
+              <Image src="/logo.png" alt="BerbagiPath" fill className="object-cover" />
             </div>
             <span className="font-bold text-lg">BerbagiPath</span>
           </Link>
@@ -189,10 +199,7 @@ export default function AdminLayout({ children }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-            </Button>
+            <AdminNotifications />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

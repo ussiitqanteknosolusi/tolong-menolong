@@ -11,70 +11,114 @@ import {
   ArrowDownRight,
   DollarSign,
   Calendar,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatCurrency } from '@/lib/mock-data';
-
-// Mock dashboard data
-const dashboardStats = {
-  totalDonations: 2456000000,
-  totalDonationsGrowth: 12.5,
-  totalCampaigns: 156,
-  activeCampaigns: 89,
-  totalDonors: 15234,
-  donorsGrowth: 8.2,
-  totalUsers: 23456,
-  pendingWithdrawals: 45000000,
-};
-
-const recentDonations = [
-  { id: 1, donor: 'Ahmad Hidayat', campaign: 'Operasi Jantung Bayi Raffa', amount: 500000, time: '5 menit lalu' },
-  { id: 2, donor: 'Hamba Allah', campaign: 'Bantu Anak Yatim Pendidikan', amount: 1000000, time: '15 menit lalu' },
-  { id: 3, donor: 'Dewi Lestari', campaign: 'Bantuan Korban Banjir', amount: 250000, time: '30 menit lalu' },
-  { id: 4, donor: 'Budi Santoso', campaign: 'Pembangunan Masjid Desa', amount: 2000000, time: '1 jam lalu' },
-  { id: 5, donor: 'Rina Wati', campaign: 'Beasiswa Mahasiswa', amount: 750000, time: '2 jam lalu' },
-];
-
-const topCampaigns = [
-  { id: 1, title: 'Operasi Jantung Bayi Raffa', progress: 80, amount: 198750000 },
-  { id: 2, title: 'Bantuan Korban Banjir Kalimantan', progress: 65, amount: 325000000 },
-  { id: 3, title: 'Bantu Anak Yatim Pendidikan', progress: 58, amount: 87500000 },
-  { id: 4, title: 'Pembangunan Masjid Desa', progress: 52, amount: 156000000 },
-];
+import { formatCurrency, getProgressPercentage } from '@/lib/mock-data';
 
 export default function AdminDashboard() {
+  const [dashboardData, setDashboardData] = useState({
+    totalDonations: 0,
+    totalCampaigns: 0,
+    activeCampaigns: 0,
+    totalDonors: 0,
+    totalUsers: 0,
+    recentDonations: [],
+  });
+  const [topCampaigns, setTopCampaigns] = useState([]);
+  const [pendingCounts, setPendingCounts] = useState({
+    campaigns: 0,
+    verifications: 0,
+    withdrawals: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, campaignsRes, pendingCampRes, verifyRes] = await Promise.all([
+          fetch('/api/stats'),
+          fetch('/api/campaigns'),
+          fetch('/api/campaigns?status=pending'),
+          fetch('/api/admin/verifications')
+        ]);
+
+        const statsData = await statsRes.json();
+        const campaignsData = await campaignsRes.json();
+        const pendingCampData = await pendingCampRes.json();
+        const verifyData = await verifyRes.json();
+
+        if (statsData.success) {
+          setDashboardData(statsData.data);
+        }
+
+        if (campaignsData.success) {
+          // Sort by progress descending
+          const sorted = campaignsData.data
+            .map(c => ({
+              ...c,
+              progress: getProgressPercentage(c.currentAmount, c.targetAmount)
+            }))
+            .sort((a, b) => b.progress - a.progress)
+            .slice(0, 5);
+          setTopCampaigns(sorted);
+        }
+        
+        setPendingCounts({
+            campaigns: pendingCampData.success ? pendingCampData.data.length : 0,
+            verifications: verifyData.success ? verifyData.data.length : 0,
+            withdrawals: 0
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const stats = [
     {
       title: 'Total Donasi',
-      value: formatCurrency(dashboardStats.totalDonations),
-      change: `+${dashboardStats.totalDonationsGrowth}%`,
-      changeType: 'positive',
+      value: formatCurrency(dashboardData.totalDonations),
+      // change: '+12.5%', // Hardcoded for now as API doesn't support history yet
+      // changeType: 'positive',
       icon: DollarSign,
       color: 'bg-emerald-500',
     },
     {
       title: 'Total Campaign',
-      value: dashboardStats.totalCampaigns.toString(),
-      subtext: `${dashboardStats.activeCampaigns} aktif`,
+      value: dashboardData.totalCampaigns.toString(),
+      subtext: `${dashboardData.activeCampaigns} aktif`,
       icon: Megaphone,
       color: 'bg-blue-500',
     },
     {
       title: 'Total Donatur',
-      value: dashboardStats.totalDonors.toLocaleString('id-ID'),
-      change: `+${dashboardStats.donorsGrowth}%`,
-      changeType: 'positive',
+      value: dashboardData.totalDonors.toLocaleString('id-ID'),
+      // change: '+8.2%',
+      // changeType: 'positive',
       icon: Heart,
       color: 'bg-pink-500',
     },
     {
       title: 'Total Users',
-      value: dashboardStats.totalUsers.toLocaleString('id-ID'),
+      value: dashboardData.totalUsers.toLocaleString('id-ID'),
       icon: Users,
       color: 'bg-purple-500',
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -152,25 +196,31 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentDonations.map((donation) => (
-                <div
-                  key={donation.id}
-                  className="flex items-center justify-between py-2 border-b last:border-0"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{donation.donor}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {donation.campaign}
-                    </p>
+              {dashboardData.recentDonations.length > 0 ? (
+                dashboardData.recentDonations.map((donation) => (
+                  <div
+                    key={donation.id}
+                    className="flex items-center justify-between py-2 border-b last:border-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{donation.donor}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {donation.campaign}
+                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="font-semibold text-sm text-emerald-600">
+                        {formatCurrency(donation.amount)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(donation.time).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="font-semibold text-sm text-emerald-600">
-                      {formatCurrency(donation.amount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{donation.time}</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Belum ada donasi terbaru</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -185,32 +235,36 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {topCampaigns.map((campaign, index) => (
-                <div key={campaign.id} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 text-xs font-bold">
-                        {index + 1}
+              {topCampaigns.length > 0 ? (
+                topCampaigns.map((campaign, index) => (
+                  <div key={campaign.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 text-xs font-bold">
+                          {index + 1}
+                        </span>
+                        <p className="font-medium text-sm truncate max-w-[200px]">
+                          {campaign.title}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-emerald-600">
+                        {campaign.progress}%
                       </span>
-                      <p className="font-medium text-sm truncate max-w-[200px]">
-                        {campaign.title}
-                      </p>
                     </div>
-                    <span className="text-sm font-semibold text-emerald-600">
-                      {campaign.progress}%
-                    </span>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all"
+                        style={{ width: `${campaign.progress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Terkumpul: {formatCurrency(campaign.currentAmount)}
+                    </p>
                   </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 rounded-full transition-all"
-                      style={{ width: `${campaign.progress}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Terkumpul: {formatCurrency(campaign.amount)}
-                  </p>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Belum ada campaign aktif</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -222,17 +276,21 @@ export default function AdminDashboard() {
           <CardTitle>Aksi Menunggu</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-              <p className="text-2xl font-bold text-yellow-700">12</p>
-              <p className="text-sm text-yellow-600">Campaign Pending Review</p>
+              <p className="text-2xl font-bold text-yellow-700">{pendingCounts.campaigns}</p>
+              <p className="text-sm text-yellow-600">Campaign Pending</p>
+            </div>
+            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <p className="text-2xl font-bold text-purple-700">{pendingCounts.verifications}</p>
+              <p className="text-sm text-purple-600">Verifikasi User</p>
             </div>
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-2xl font-bold text-blue-700">5</p>
+              <p className="text-2xl font-bold text-blue-700">{pendingCounts.withdrawals}</p>
               <p className="text-sm text-blue-600">Permintaan Pencairan</p>
             </div>
             <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-              <p className="text-2xl font-bold text-red-700">3</p>
+              <p className="text-2xl font-bold text-red-700">0</p>
               <p className="text-sm text-red-600">Laporan Masuk</p>
             </div>
           </div>
