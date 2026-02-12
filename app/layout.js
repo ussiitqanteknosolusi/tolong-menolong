@@ -1,4 +1,4 @@
-import { Inter } from 'next/font/google';
+// import { Inter } from 'next/font/google';
 import './globals.css';
 import DesktopNav from '@/components/desktop-nav';
 import MobileNav from '@/components/mobile-nav';
@@ -8,7 +8,7 @@ import { AuthProvider } from '@/components/auth-provider';
 import { Suspense } from 'react';
 import NextTopLoader from 'nextjs-toploader';
 
-const inter = Inter({ subsets: ['latin'] });
+// const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://steelblue-tiger-791529.hostingersite.com'),
@@ -20,7 +20,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className="font-sans antialiased">
         <NextTopLoader color="#10b981" showSpinner={false} />
         <Suspense fallback={null}>
           <LoadingProvider>
