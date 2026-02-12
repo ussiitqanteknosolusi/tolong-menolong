@@ -61,7 +61,6 @@ const menuSections = [
         isDynamic: true,
         valueColor: 'text-blue-500'
       },
-      { icon: AlarmClock, label: 'Pengingat donasi', href: '/reminders' },
       { 
         icon: Repeat, 
         label: 'Donasi Otomatis', 

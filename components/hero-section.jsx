@@ -8,29 +8,64 @@ import { ChevronLeft, ChevronRight, BadgeCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { formatCurrency, getProgressPercentage, getUrgentCampaigns } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/mock-data';
 
 export default function HeroSection() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const urgentCampaigns = getUrgentCampaigns();
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchCampaigns = async () => {
+      try {
+        const res = await fetch('/api/campaigns?limit=5&status=active');
+        const data = await res.json();
+        if (data.success) {
+            setCampaigns(data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch hero campaigns:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCampaigns();
+  }, []);
+
+  useEffect(() => {
+    if (campaigns.length === 0) return;
     const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % urgentCampaigns.length);
+      setCurrentIndex((prev) => (prev + 1) % campaigns.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [urgentCampaigns.length]);
+  }, [campaigns.length]);
 
   const nextSlide = () => {
-    setCurrentIndex((prev) => (prev + 1) % urgentCampaigns.length);
+    if (campaigns.length === 0) return;
+    setCurrentIndex((prev) => (prev + 1) % campaigns.length);
   };
 
   const prevSlide = () => {
-    setCurrentIndex((prev) => (prev - 1 + urgentCampaigns.length) % urgentCampaigns.length);
+    if (campaigns.length === 0) return;
+    setCurrentIndex((prev) => (prev - 1 + campaigns.length) % campaigns.length);
   };
 
-  const campaign = urgentCampaigns[currentIndex];
-  const progress = getProgressPercentage(campaign.currentAmount, campaign.targetAmount);
+  if (loading) {
+    return (
+        <div className="w-full aspect-[16/9] md:aspect-[21/9] bg-gray-100 animate-pulse flex items-center justify-center">
+            <span className="sr-only">Loading...</span>
+        </div>
+    );
+  }
+
+  if (campaigns.length === 0) return null;
+
+  const campaign = campaigns[currentIndex];
+  // Calculate progress safely
+  const progress = campaign.targetAmount > 0 
+      ? Math.min((campaign.currentAmount / campaign.targetAmount) * 100, 100) 
+      : 0;
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50 to-background">
@@ -43,7 +78,7 @@ export default function HeroSection() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5 }}
-              className="relative aspect-[16/9] md:aspect-[21/9]"
+              className="relative aspect-[4/3] sm:aspect-[16/9] md:aspect-[21/9]"
             >
               <Image
                 src={campaign.image}
@@ -110,7 +145,7 @@ export default function HeroSection() {
 
           {/* Dots */}
           <div className="absolute bottom-4 md:bottom-8 right-4 md:right-8 flex gap-2">
-            {urgentCampaigns.map((_, idx) => (
+            {campaigns.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentIndex(idx)}

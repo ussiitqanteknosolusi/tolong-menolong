@@ -11,6 +11,7 @@ import NextTopLoader from 'nextjs-toploader';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://steelblue-tiger-791529.hostingersite.com'),
   title: 'BerbagiPath - Platform Donasi & Crowdfunding Indonesia',
   description: 'Platform donasi online terpercaya untuk membantu sesama. Galang dana untuk kesehatan, pendidikan, bencana alam, dan kegiatan sosial.',
   keywords: 'donasi, crowdfunding, galang dana, zakat, sedekah, bantu sesama',

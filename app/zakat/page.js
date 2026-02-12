@@ -27,6 +27,11 @@ const ZAKAT_TYPES = [
     rate: 0.025,
     icon: Wallet,
     color: 'emerald',
+    activeClass: 'border-emerald-500 bg-emerald-50/50 shadow-md',
+    inactiveClass: 'border-gray-200 hover:border-gray-300',
+    iconActiveClass: 'bg-emerald-100 text-emerald-600',
+    iconInactiveClass: 'bg-gray-100 text-gray-400',
+    chevronClass: 'text-emerald-500'
   },
   {
     id: 'maal',
@@ -35,6 +40,11 @@ const ZAKAT_TYPES = [
     rate: 0.025,
     icon: Coins,
     color: 'blue',
+    activeClass: 'border-blue-500 bg-blue-50/50 shadow-md',
+    inactiveClass: 'border-gray-200 hover:border-gray-300',
+    iconActiveClass: 'bg-blue-100 text-blue-600',
+    iconInactiveClass: 'bg-gray-100 text-gray-400',
+    chevronClass: 'text-blue-500'
   },
   {
     id: 'fitrah',
@@ -44,6 +54,11 @@ const ZAKAT_TYPES = [
     fixedAmount: 40000,
     icon: Heart,
     color: 'purple',
+    activeClass: 'border-purple-500 bg-purple-50/50 shadow-md',
+    inactiveClass: 'border-gray-200 hover:border-gray-300',
+    iconActiveClass: 'bg-purple-100 text-purple-600',
+    iconInactiveClass: 'bg-gray-100 text-gray-400',
+    chevronClass: 'text-purple-500'
   },
 ];
 
@@ -122,16 +137,16 @@ export default function ZakatPage() {
                   key={type.id}
                   className={`border cursor-pointer transition-all shadow-sm ${
                     isSelected
-                      ? `border-${type.color}-500 bg-${type.color}-50/50 shadow-md`
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? type.activeClass
+                      : type.inactiveClass
                   }`}
                   onClick={() => { setSelectedType(type.id); setResult(null); }}
                 >
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className={`p-3 rounded-xl ${
                       isSelected 
-                        ? `bg-${type.color}-100 text-${type.color}-600` 
-                        : 'bg-gray-100 text-gray-400'
+                        ? type.iconActiveClass 
+                        : type.iconInactiveClass
                     }`}>
                       <Icon className="w-5 h-5" />
                     </div>
@@ -139,7 +154,7 @@ export default function ZakatPage() {
                       <p className="font-semibold text-sm">{type.title}</p>
                       <p className="text-xs text-muted-foreground">{type.desc}</p>
                     </div>
-                    <ChevronRight className={`w-5 h-5 ${isSelected ? 'text-emerald-500' : 'text-gray-300'}`} />
+                    <ChevronRight className={`w-5 h-5 ${isSelected ? type.chevronClass : 'text-gray-300'}`} />
                   </CardContent>
                 </Card>
               );

@@ -45,8 +45,20 @@ export default function HomePage() {
 
         if (statsData.success) {
             const s = statsData.data;
+            
+            // Format formatter untuk angka besar
+            const formatCompact = (num) => {
+                if (num >= 1000000000) {
+                    return 'Rp ' + (num / 1000000000).toFixed(1).replace(/\.0$/, '')?.replace('.', ',') + ' M+';
+                }
+                if (num >= 1000000) {
+                    return 'Rp ' + (num / 1000000).toFixed(1).replace(/\.0$/, '')?.replace('.', ',') + ' Jt+';
+                }
+                return formatCurrency(num);
+            };
+
              setStats([
-                { label: 'Total Donasi', value: formatCurrency(s.totalDonations), icon: TrendingUp },
+                { label: 'Total Donasi', value: formatCompact(s.totalDonations), icon: TrendingUp },
                 { label: 'Campaign Aktif', value: s.activeCampaigns + '+', icon: Shield },
                 { label: 'Donatur Terdaftar', value: s.totalUsers + '+', icon: Clock },
              ]);
@@ -85,7 +97,7 @@ export default function HomePage() {
                   <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 mb-2">
                     <Icon className="w-5 h-5" />
                   </div>
-                  <p className="text-lg md:text-2xl font-bold text-emerald-600">
+                  <p className="text-sm sm:text-lg md:text-2xl font-bold text-emerald-600 whitespace-nowrap">
                     {stat.value}
                   </p>
                   <p className="text-xs md:text-sm text-muted-foreground">

@@ -42,6 +42,15 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount || 0);
+};
+
 const roleColors = {
   admin: 'bg-purple-100 text-purple-700',
   organizer: 'bg-blue-100 text-blue-700',
@@ -222,6 +231,7 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Kontak</TableHead>
+                  <TableHead>Saldo</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Aktivitas</TableHead>
@@ -263,6 +273,9 @@ export default function UsersPage() {
                           {user.phone || '-'}
                         </p>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(user.balance)}
                     </TableCell>
                     <TableCell>
                       <Select 

@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, User, Lock, Bell, Palette, Globe,
-  Save, Eye, EyeOff, Loader2, Check
+  Save, Eye, EyeOff, Loader2, Check, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [activeSection, setActiveSection] = useState('profile');
 
   // Form state
   const [name, setName] = useState('');
@@ -91,6 +92,8 @@ export default function SettingsPage() {
       if (res.ok) {
         updateUser(updates);
         toast.success('Profil berhasil diperbarui!');
+        // Refresh profile state
+        setProfile(prev => ({ ...prev, ...updates }));
       } else {
         toast.error('Gagal menyimpan perubahan');
       }
@@ -167,134 +170,170 @@ export default function SettingsPage() {
           <h1 className="text-xl font-bold">Pengaturan</h1>
         </div>
 
-        {/* Profile Settings */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h2 className="font-semibold text-sm text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <User className="w-4 h-4" /> Informasi Profil
-          </h2>
-          <Card className="mb-6 border-none shadow-sm">
-            <CardContent className="p-4 space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Nama Lengkap</label>
-                <Input value={name} onChange={e => setName(e.target.value)} className="bg-gray-50" />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">Email</label>
-                <Input value={email} disabled className="bg-gray-100 text-muted-foreground cursor-not-allowed" />
-                <p className="text-xs text-muted-foreground mt-1">Email tidak dapat diubah</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">Nomor Telepon</label>
-                <Input value={phone} onChange={e => setPhone(e.target.value)} className="bg-gray-50" placeholder="08xxxxxxxxxx" />
-              </div>
-              <Button
-                className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"
-                onClick={handleSaveProfile}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Simpan Perubahan
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
+        <div className="space-y-4">
+            {/* Profile Settings */}
+            <SettingsSection 
+                id="profile" 
+                title="Informasi Profil" 
+                icon={User}
+                activeSection={activeSection}
+                setActiveSection={setActiveSection}
+            >
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Nama Lengkap</label>
+                    <Input value={name} onChange={e => setName(e.target.value)} className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Email</label>
+                    <Input value={email} disabled className="bg-gray-100 text-muted-foreground cursor-not-allowed" />
+                    <p className="text-xs text-muted-foreground mt-1">Email tidak dapat diubah</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Nomor Telepon</label>
+                    <Input value={phone} onChange={e => setPhone(e.target.value)} className="bg-gray-50" placeholder="08xxxxxxxxxx" />
+                  </div>
+                  <Button
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 gap-2"
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Simpan Perubahan
+                  </Button>
+                </div>
+            </SettingsSection>
 
-        {/* Password */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <h2 className="font-semibold text-sm text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <Lock className="w-4 h-4" /> Ubah Password
-          </h2>
-          <Card className="mb-6 border-none shadow-sm">
-            <CardContent className="p-4 space-y-4">
-              <div className="relative">
-                <label className="text-sm font-medium mb-1 block">Password Baru</label>
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  className="bg-gray-50 pr-10"
-                  placeholder="Minimal 6 karakter"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-7 h-8 w-8"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">Konfirmasi Password Baru</label>
-                <Input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  className="bg-gray-50"
-                  placeholder="Ulangi password baru"
-                />
-              </div>
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700 gap-2"
-                onClick={handleChangePassword}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-                Ubah Password
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
+            {/* Password */}
+            <SettingsSection 
+                id="password" 
+                title="Ubah Password" 
+                icon={Lock}
+                activeSection={activeSection}
+                setActiveSection={setActiveSection}
+            >
+                <div className="space-y-4">
+                  <div className="relative">
+                    <label className="text-sm font-medium mb-1 block">Password Baru</label>
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      className="bg-gray-50 pr-10"
+                      placeholder="Minimal 6 karakter"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-7 h-8 w-8"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Konfirmasi Password Baru</label>
+                    <Input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      className="bg-gray-50"
+                      placeholder="Ulangi password baru"
+                    />
+                  </div>
+                  <Button
+                    className="w-full bg-blue-600 hover:bg-blue-700 gap-2"
+                    onClick={handleChangePassword}
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                    Ubah Password
+                  </Button>
+                </div>
+            </SettingsSection>
 
-        {/* Notification Preferences */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <h2 className="font-semibold text-sm text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <Bell className="w-4 h-4" /> Notifikasi
-          </h2>
-          <Card className="mb-6 border-none shadow-sm">
-            <CardContent className="p-0 divide-y">
-              <ToggleItem
-                label="Notifikasi Email"
-                desc="Terima pemberitahuan melalui email"
-                checked={emailNotif}
-                onChange={() => setEmailNotif(!emailNotif)}
-              />
-              <ToggleItem
-                label="Push Notification"
-                desc="Terima pemberitahuan di browser"
-                checked={pushNotif}
-                onChange={() => setPushNotif(!pushNotif)}
-              />
-              <ToggleItem
-                label="Notifikasi Donasi"
-                desc="Diberitahu saat ada donasi masuk"
-                checked={donationNotif}
-                onChange={() => setDonationNotif(!donationNotif)}
-              />
-              <div className="p-4">
-                <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  onClick={handleSaveNotifPrefs}
-                >
-                  <Check className="w-4 h-4" />
-                  Simpan Preferensi
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            {/* Notification Preferences */}
+            <SettingsSection 
+                id="notifications" 
+                title="Preferensi Notifikasi" 
+                icon={Bell}
+                activeSection={activeSection}
+                setActiveSection={setActiveSection}
+            >
+                <div className="divide-y -mx-4">
+                  <ToggleItem
+                    label="Notifikasi Email"
+                    desc="Terima pemberitahuan melalui email"
+                    checked={emailNotif}
+                    onChange={() => setEmailNotif(!emailNotif)}
+                  />
+                  <ToggleItem
+                    label="Push Notification"
+                    desc="Terima pemberitahuan di browser"
+                    checked={pushNotif}
+                    onChange={() => setPushNotif(!pushNotif)}
+                  />
+                  <ToggleItem
+                    label="Notifikasi Donasi"
+                    desc="Diberitahu saat ada donasi masuk"
+                    checked={donationNotif}
+                    onChange={() => setDonationNotif(!donationNotif)}
+                  />
+                </div>
+                <div className="mt-4">
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2"
+                      onClick={handleSaveNotifPrefs}
+                    >
+                      <Check className="w-4 h-4" />
+                      Simpan Preferensi
+                    </Button>
+                </div>
+            </SettingsSection>
+        </div>
       </div>
     </main>
+  );
+}
+
+function SettingsSection({ id, title, icon: Icon, activeSection, setActiveSection, children }) {
+  const isOpen = activeSection === id;
+  
+  return (
+    <Card className="border-none shadow-sm overflow-hidden bg-white">
+        <button 
+            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors w-full"
+            onClick={() => setActiveSection(isOpen ? null : id)}
+        >
+            <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg transition-colors ${isOpen ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
+                    <Icon className="w-5 h-5" />
+                </div>
+                <span className={`font-semibold text-sm ${isOpen ? 'text-emerald-900' : 'text-gray-700'}`}>
+                    {title}
+                </span>
+            </div>
+            {isOpen ? <ChevronUp className="w-5 h-5 text-gray-400"/> : <ChevronDown className="w-5 h-5 text-gray-400"/>}
+        </button>
+        
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    <Separator />
+                    <div className="p-4">
+                        {children}
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    </Card>
   );
 }
 

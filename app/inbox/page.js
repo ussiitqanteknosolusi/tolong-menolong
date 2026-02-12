@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Heart, Tag, CheckCheck, Loader2, Info } from 'lucide-react';
+import { Bell, Heart, Tag, CheckCheck, Loader2, Info, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -95,16 +95,38 @@ export default function InboxPage() {
       <div className="container py-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Inbox</h1>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-emerald-600"
-            onClick={markAllAsRead}
-            disabled={!notifications.some(n => !n.is_read)}
-          >
-            <CheckCheck className="w-4 h-4 mr-1" />
-            Tandai Semua Dibaca
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-emerald-600"
+                onClick={markAllAsRead}
+                disabled={!notifications.some(n => !n.is_read)}
+            >
+                <CheckCheck className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Tandai Semua Dibaca</span>
+            </Button>
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                onClick={async () => {
+                    const confirm = window.confirm('Hapus semua notifikasi yang sudah dibaca?');
+                    if (!confirm) return;
+                    
+                    setNotifications(prev => prev.filter(n => !n.is_read));
+                    try {
+                        await fetch(`/api/users/${user.id}/notifications/read`, { method: 'DELETE' });
+                    } catch (err) {
+                        console.error('Failed to clear notifications', err);
+                    }
+                }}
+                disabled={!notifications.some(n => n.is_read)}
+            >
+                <Trash2 className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Bersihkan</span>
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-3">

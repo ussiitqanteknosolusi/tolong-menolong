@@ -311,7 +311,8 @@ export async function GET(request, { params }) {
           name: u.name,
           email: u.email,
           phone: u.phone,
-          role: 'user', // Default role for now, DB schema might need role column
+          role: u.role || 'user',
+          balance: parseFloat(u.balance || 0),
           isVerified: !!u.is_verified,
           createdAt: u.created_at,
           donationCount: donationCount[0].count,
@@ -1239,6 +1240,19 @@ export async function DELETE(request, { params }) {
         );
     }
     
+    // Delete Read Notifications
+    if (pathStr.startsWith('users/') && pathStr.endsWith('/notifications/read')) {
+        const parts = pathStr.split('/');
+        const id = parts[1]; // user id
+        
+        await db.query("DELETE FROM notifications WHERE user_id = ? AND is_read = TRUE", [id]);
+        
+        return NextResponse.json(
+            { success: true, message: 'Read notifications deleted' },
+            { headers: corsHeaders() }
+        );
+    }
+
     // Delete User
     if (pathStr.startsWith('users/')) {
          const id = path[1];
