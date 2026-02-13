@@ -335,7 +335,7 @@ export default function DonationModal({ isOpen, onClose, campaign, user }) {
                   >
                     <Button className="w-full bg-emerald-500 hover:bg-emerald-600">
                       <ExternalLink className="w-4 h-4 mr-2" />
-                      Bayar Sekarang via Xendit
+                      Bayar Sekarang
                     </Button>
                   </a>
                 )}

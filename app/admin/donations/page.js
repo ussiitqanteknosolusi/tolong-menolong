@@ -121,6 +121,27 @@ export default function DonationsPage() {
     });
   };
 
+  const formatPaymentChannel = (channel) => {
+    if (!channel) return 'N/A';
+    // Common DOKU/midtrans channel codes mapping
+    const mapping = {
+      'VIRTUAL_ACCOUNT_BCA': 'BCA Virtual Account',
+      'VIRTUAL_ACCOUNT_MANDIRI': 'Mandiri Virtual Account',
+      'VIRTUAL_ACCOUNT_BRI': 'BRI Virtual Account',
+      'VIRTUAL_ACCOUNT_BNI': 'BNI Virtual Account',
+      'VIRTUAL_ACCOUNT_PERMATA': 'Permata Virtual Account',
+      'VIRTUAL_ACCOUNT_CIMB': 'CIMB Virtual Account',
+      'VIRTUAL_ACCOUNT_DANAMON': 'Danamon Virtual Account',
+      'CREDIT_CARD': 'Kartu Kredit',
+      'OVO': 'OVO',
+      'DANA': 'DANA',
+      'LINKAJA': 'LinkAja',
+      'SHOPEEPAY': 'ShopeePay',
+      'QRIS': 'QRIS',
+    };
+    return mapping[channel] || channel.replace(/_/g, ' ');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -256,7 +277,7 @@ export default function DonationsPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{donation.paymentChannel}</Badge>
+                        <Badge variant="outline">{formatPaymentChannel(donation.paymentChannel)}</Badge>
                       </TableCell>
                       <TableCell>
                         <Badge className={statusColors[donation.status]}>
@@ -353,10 +374,10 @@ export default function DonationsPage() {
                   <div>
                     <p className="text-sm font-medium">Metode Pembayaran</p>
                     <p className="text-sm text-muted-foreground uppercase">
-                      {selectedDonation.paymentMethod || 'Belum dipilih'}
+                      {formatPaymentChannel(selectedDonation.paymentChannel)}
                     </p>
-                    {selectedDonation.paymentChannel && (
-                        <p className="text-xs text-muted-foreground uppercase">{selectedDonation.paymentChannel}</p>
+                    {selectedDonation.paymentMethod && selectedDonation.paymentMethod !== 'DOKU' && (
+                        <p className="text-xs text-muted-foreground uppercase">{selectedDonation.paymentMethod}</p>
                     )}
                   </div>
                 </div>

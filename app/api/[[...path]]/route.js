@@ -366,7 +366,7 @@ export async function GET(request, { params }) {
         );
     }
     
-    // Get user donations
+    // Get user donations (with pagination + date filter)
     if (pathStr.startsWith('users/') && pathStr.endsWith('/donations')) {
         const parts = pathStr.split('/');
         const id = parts[1]; // users/:id/donations
@@ -377,11 +377,46 @@ export async function GET(request, { params }) {
         }
         const userEmail = userResult[0].email;
 
-        // Fetch donations by email (assuming email is consistent)
-        // Also check by user_id if present
+        // ✅ Pagination & Date filter params
+        const { searchParams } = new URL(request.url);
+        const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // Max 100
+        const offset = parseInt(searchParams.get('offset') || '0');
+        const dateFrom = searchParams.get('dateFrom');
+        const dateTo = searchParams.get('dateTo');
+        const status = searchParams.get('status'); // 'paid', 'pending', 'all'
+
+        let whereClause = 'd.donor_email = ?';
+        const params = [userEmail];
+
+        if (dateFrom) {
+            whereClause += ' AND d.created_at >= ?';
+            params.push(dateFrom);
+        }
+        if (dateTo) {
+            whereClause += ' AND d.created_at <= ?';
+            params.push(dateTo + ' 23:59:59');
+        }
+        if (status && status !== 'all') {
+            whereClause += ' AND d.status = ?';
+            params.push(status);
+        }
+
+        // Get total count for pagination
+        const countResult = await db.query(
+            `SELECT COUNT(*) as total FROM donations d WHERE ${whereClause}`,
+            params
+        );
+        const totalCount = countResult[0]?.total || 0;
+
+        // Get paginated data
         const donations = await db.query(
-            "SELECT d.*, c.title as campaign_title, c.slug as campaign_slug FROM donations d JOIN campaigns c ON d.campaign_id = c.id WHERE d.donor_email = ? ORDER BY d.created_at DESC", 
-            [userEmail]
+            `SELECT d.*, c.title as campaign_title, c.slug as campaign_slug 
+             FROM donations d 
+             JOIN campaigns c ON d.campaign_id = c.id 
+             WHERE ${whereClause} 
+             ORDER BY d.created_at DESC 
+             LIMIT ? OFFSET ?`, 
+            [...params, limit, offset]
         );
 
         const transformedDonations = donations.map(d => ({
@@ -400,23 +435,51 @@ export async function GET(request, { params }) {
         }));
 
         return NextResponse.json(
-            { success: true, data: transformedDonations },
+            { 
+                success: true, 
+                data: transformedDonations,
+                pagination: {
+                    total: totalCount,
+                    limit,
+                    offset,
+                    hasMore: offset + limit < totalCount
+                }
+            },
             { headers: corsHeaders() }
         );
     }
 
-    // Get user topups
+    // Get user topups (with pagination)
     if (pathStr.startsWith('users/') && pathStr.endsWith('/topups')) {
         const parts = pathStr.split('/');
         const id = parts[1];
 
-        const topups = await db.query(
-            "SELECT * FROM wallet_topups WHERE user_id = ? ORDER BY created_at DESC",
+        const { searchParams } = new URL(request.url);
+        const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+        const offset = parseInt(searchParams.get('offset') || '0');
+
+        const countResult = await db.query(
+            "SELECT COUNT(*) as total FROM wallet_topups WHERE user_id = ?",
             [id]
+        );
+        const totalCount = countResult[0]?.total || 0;
+
+        const topups = await db.query(
+            "SELECT * FROM wallet_topups WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            [id, limit, offset]
         );
 
         return NextResponse.json(
-            { success: true, data: topups },
+            { 
+                success: true, 
+                data: topups,
+                pagination: {
+                    total: totalCount,
+                    limit,
+                    offset,
+                    hasMore: offset + limit < totalCount
+                }
+            },
             { headers: corsHeaders() }
         );
     }
@@ -521,7 +584,7 @@ export async function GET(request, { params }) {
             SELECT d.*, c.title as campaign_title 
             FROM donations d
             LEFT JOIN campaigns c ON d.campaign_id = c.id
-            ORDER BY d.amount DESC
+            ORDER BY d.created_at DESC
         `;
         const donations = await db.query(query);
         
@@ -784,26 +847,44 @@ export async function POST(request, { params }) {
 
         console.log('DOKU webhook received:', JSON.stringify(body, null, 2));
 
-        // Log webhook
-        await db.insert('webhook_logs', {
-           id: uuidv4(),
-           event_type: 'DOKU_NOTIFY',
-           payload: JSON.stringify(body),
-           status: 'received',
-           created_at: new Date()
-        });
+        // Log webhook (Safe)
+        try {
+            await db.insert('webhook_logs', {
+               id: uuidv4(),
+               event_type: 'DOKU_NOTIFY',
+               payload: JSON.stringify(body),
+               status: 'received',
+               created_at: new Date()
+            });
+        } catch (e) {
+            console.error('Failed to log webhook to DB:', e);
+        }
 
         if (externalId && status === 'SUCCESS') {
              if (externalId.startsWith('DON-')) {
                  // Donation
                  const donations = await db.query("SELECT id FROM donations WHERE xendit_external_id = ? LIMIT 1", [externalId]);
                  if (donations.length > 0) {
+                     // Update payment channel info from payload
+                     const channel = body.channel?.id || 'DOKU';
+                     await db.query("UPDATE donations SET payment_method = 'DOKU', payment_channel = ? WHERE id = ?", [channel, donations[0].id]);
+                     
                      await db.query("CALL sp_process_payment(?, ?)", [donations[0].id, 'DOKU-' + externalId]);
                  }
              } else if (externalId.startsWith('TOPUP-')) {
                  // Topup
                  const topups = await db.query("SELECT id FROM wallet_topups WHERE xendit_external_id = ? LIMIT 1", [externalId]);
                  if (topups.length > 0) {
+                     // Update payment channel info
+                     const channel = body.channel?.id || 'DOKU';
+                     // Note: wallet_topups might not have payment_channel/method columns yet, check schema if needed
+                     // But if they do, update them here:
+                     try {
+                         await db.query("UPDATE wallet_topups SET payment_method = 'DOKU', payment_channel = ? WHERE id = ?", [channel, topups[0].id]);
+                     } catch (e) {
+                         // Ignore if columns don't exist
+                     }
+                     
                      await db.query("CALL sp_process_topup(?)", [topups[0].id]);
                  }
              }
