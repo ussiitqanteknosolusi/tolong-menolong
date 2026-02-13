@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { 
   ChevronLeft, LayoutGrid, ArrowRight, Loader2,
   Heart, GraduationCap, Home, HeartPulse, 
-  Baby, Mosque, Globe, AlertTriangle
+  Baby, Landmark, Globe, AlertTriangle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -19,7 +19,7 @@ const iconMap = {
   'Home': Home,
   'Hospital': HeartPulse,
   'Baby': Baby,
-  'Mosque': Mosque,
+  'Mosque': Landmark,
   'Globe': Globe,
 };
 
