@@ -848,59 +848,8 @@ export async function POST(request, { params }) {
     }
 
 
-
-    // DOKU Webhook handler
-    if (pathStr === 'webhook/doku') {
-        const externalId = body.order?.invoice_number;
-        const status = body.transaction?.status;
-
-        console.log('DOKU webhook received:', JSON.stringify(body, null, 2));
-
-        // Log webhook (Safe)
-        try {
-            await db.insert('webhook_logs', {
-               id: uuidv4(),
-               event_type: 'DOKU_NOTIFY',
-               payload: JSON.stringify(body),
-               status: 'received',
-               created_at: new Date()
-            });
-        } catch (e) {
-            console.error('Failed to log webhook to DB:', e);
-        }
-
-        if (externalId && status === 'SUCCESS') {
-             if (externalId.startsWith('DON-')) {
-                 // Donation
-                 const donations = await db.query("SELECT id FROM donations WHERE xendit_external_id = ? LIMIT 1", [externalId]);
-                 if (donations.length > 0) {
-                     // Update payment channel info from payload
-                     const channel = body.channel?.id || 'DOKU';
-                     await db.query("UPDATE donations SET payment_method = 'DOKU', payment_channel = ? WHERE id = ?", [channel, donations[0].id]);
-                     
-                     await db.query("CALL sp_process_payment(?, ?)", [donations[0].id, 'DOKU-' + externalId]);
-                 }
-             } else if (externalId.startsWith('TOPUP-')) {
-                 // Topup
-                 const topups = await db.query("SELECT id FROM wallet_topups WHERE xendit_external_id = ? LIMIT 1", [externalId]);
-                 if (topups.length > 0) {
-                     // Update payment channel info
-                     const channel = body.channel?.id || 'DOKU';
-                     // Note: wallet_topups might not have payment_channel/method columns yet, check schema if needed
-                     // But if they do, update them here:
-                     try {
-                         await db.query("UPDATE wallet_topups SET payment_method = 'DOKU', payment_channel = ? WHERE id = ?", [channel, topups[0].id]);
-                     } catch (e) {
-                         // Ignore if columns don't exist
-                     }
-                     
-                     await db.query("CALL sp_process_topup(?)", [topups[0].id]);
-                 }
-             }
-        }
-        
-        return NextResponse.json({ success: true });
-    }
+    // DOKU Webhook: Ditangani oleh dedicated route di /api/webhook/doku/route.js
+    // JANGAN tambahkan handler webhook di sini untuk menghindari konflik routing.
 
     // Create new campaign
     if (pathStr === 'campaigns') {
