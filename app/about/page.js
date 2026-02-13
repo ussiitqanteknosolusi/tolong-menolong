@@ -1,5 +1,8 @@
 'use client';
 
+// ✅ This page has no dynamic data — generated at build time
+// export const dynamic = 'force-static'; // Cannot use with 'use client' but Next.js auto-detects static
+
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
