@@ -701,7 +701,12 @@ export async function POST(request, { params }) {
 
       const donationId = uuidv4();
       const externalId = `DON-${donationId.substring(0, 8).toUpperCase()}`;
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      
+      // Detect base URL dynamically from request
+      const host = request.headers.get('host');
+      const proto = request.headers.get('x-forwarded-proto') || 'https';
+      const detectedBaseUrl = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
+      const baseUrl = detectedBaseUrl;
 
       // Create DOKU Invoice
       const invoiceResult = await doku.createInvoice({
@@ -803,7 +808,11 @@ export async function POST(request, { params }) {
 
         const topupId = uuidv4();
         const externalId = `TOPUP-${topupId.substring(0, 8).toUpperCase()}`;
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+        
+        // Detect base URL dynamically from request
+        const host = request.headers.get('host');
+        const proto = request.headers.get('x-forwarded-proto') || 'https';
+        const baseUrl = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
 
         // Create DOKU Invoice for Topup
         const invoiceResult = await doku.createInvoice({
