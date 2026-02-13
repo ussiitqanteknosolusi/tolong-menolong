@@ -15,6 +15,12 @@ const clients = new Map(); // IP -> { count: number, resetTime: number }
 let lastCleanup = Date.now();
 
 export function middleware(request) {
+  // Skip rate limiting for webhook endpoints (DOKU/Xendit notifications)
+  const pathname = request.nextUrl.pathname;
+  if (pathname.startsWith('/api/webhook')) {
+    return NextResponse.next();
+  }
+
   const now = Date.now();
 
   // Get client IP
